@@ -1,219 +1,174 @@
 #include <net-snmp/net-snmp-config.h>
 #include <net-snmp/net-snmp-includes.h>
-#undef inline
-#include <ctime>
+#include <string.h>
 
-#ifdef HAVE_WINSOCK_H
-#include <winsock.h>
+/* change the word "define" to "undef" to try the (insecure) SNMPv1 version */
+#undef DEMO_USE_SNMP_VERSION_3
+
+#ifdef DEMO_USE_SNMP_VERSION_3
+const char *our_v3_passphrase = "The Net-SNMP Demo Password";
 #endif
 
-/*
- * a list of hosts to query
- */
-struct host {
-  const char *name;
-  const char *community;
-} hosts[] = {
-  { "192.168.1.200",		"public" },
-  { "192.168.1.201",		"public" },
-  { NULL }
-};
-
-/*
- * a list of variables to query for
- */
-struct poid {
-  const char *Name;
-  oid Oid[MAX_OID_LEN];
-  int OidLen;
-} 
-oids[] = {
-  { "system.sysDescr.0"},
-  { "interfaces.ifNumber.1"},
-  { "interfaces.ifNumber.0"},
-  { NULL }
-};
-
-/*
- * initialize
- */
-void initialize (void)
+int main(int argc, char ** argv)
 {
-  struct poid *op = oids;
-  
-  /* Win32: init winsock */
-  SOCK_STARTUP;
+    netsnmp_session session, *ss;
+    netsnmp_pdu *pdu;
+    netsnmp_pdu *response;
 
-  /* initialize library */
-  init_snmp("asynchapp");
+    oid anOID[MAX_OID_LEN];
+    size_t anOID_len;
 
-  /* parse the oids */
-  while (op->Name) {
-    op->OidLen = sizeof(op->Oid)/sizeof(op->Oid[0]);
-    if (!read_objid(op->Name, op->Oid, reinterpret_cast<size_t*>(&op->OidLen))) {
-      snmp_perror("read_objid");
-      exit(1);
-    }
-    op++;
-  }
-}
+    netsnmp_variable_list *vars;
+    int status;
+    int count=1;
 
-/*
- * simple printing of returned data
- */
-int print_result (int status, struct snmp_session *sp, struct snmp_pdu *pdu)
-{
-  char buf[1024];
-  struct variable_list *vp;
-  int ix;
-  /*auto currentTime = std::time(0);
-  struct tm *tm = std::localtime(&currentTime);
+    /*
+     * Initialize the SNMP library
+     */
+    init_snmp("snmpdemoapp");
 
-  fprintf(stdout, "%.2d:%.2d:%.2d.%.6d ", tm->tm_hour, tm->tm_min, tm->tm_sec,
-          now.tv_usec);*/
-  switch (status) {
-  case STAT_SUCCESS:
-    vp = pdu->variables;
-    if (pdu->errstat == SNMP_ERR_NOERROR) {
-      while (vp) {
-        snprint_variable(buf, sizeof(buf), vp->name, vp->name_length, vp);
-        fprintf(stdout, "%s: %s\n", sp->peername, buf);
-	vp = vp->next_variable;
-      }
-    }
-    else {
-      for (ix = 1; vp && ix != pdu->errindex; vp = vp->next_variable, ix++)
-        ;
-      if (vp) snprint_objid(buf, sizeof(buf), vp->name, vp->name_length);
-      else strcpy(buf, "(none)");
-      fprintf(stdout, "%s: %s: %s\n",
-      	sp->peername, buf, snmp_errstring(pdu->errstat));
-    }
-    return 1;
-  case STAT_TIMEOUT:
-    fprintf(stdout, "%s: Timeout\n", sp->peername);
-    return 0;
-  case STAT_ERROR:
-    snmp_perror(sp->peername);
-    return 0;
-  }
-  return 0;
-}
+    /*
+     * Initialize a "session" that defines who we're going to talk to
+     */
+    snmp_sess_init( &session );                   /* set up defaults */
+    session.peername = strdup("192.168.1.19");
 
+    /* set up the authentication parameters for talking to the server */
 
-/*****************************************************************************/
+#ifdef DEMO_USE_SNMP_VERSION_3
 
-/*
- * poll all hosts in parallel
- */
-struct session {
-  struct snmp_session *sess;		/* SNMP session data */
-  struct oid *current_oid;		/* How far in our poll are we */
-} sessions[sizeof(hosts)/sizeof(hosts[0])];
+    /* Use SNMPv3 to talk to the experimental server */
 
-int active_hosts;			/* hosts that we have not completed */
+    /* set the SNMP version number */
+    session.version=SNMP_VERSION_3;
+        
+    /* set the SNMPv3 user name */
+    session.securityName = strdup("MD5User");
+    session.securityNameLen = strlen(session.securityName);
 
-/*
- * response handler
- */
-int asynch_response(int operation, struct snmp_session *sp, int reqid,
-		    struct snmp_pdu *pdu, void *magic)
-{
-  struct session *host = (struct session *)magic;
-  struct snmp_pdu *req;
+    /* set the security level to authenticated, but not encrypted */
+    session.securityLevel = SNMP_SEC_LEVEL_AUTHNOPRIV;
 
-  if (operation == NETSNMP_CALLBACK_OP_RECEIVED_MESSAGE) {
-    if (print_result(STAT_SUCCESS, host->sess, pdu)) {
-      host->current_oid++;			/* send next GET (if any) */
-      if (host->current_oid->Name) {
-	req = snmp_pdu_create(SNMP_MSG_GET);
-	snmp_add_null_var(req, host->current_oid->Oid, host->current_oid->OidLen);
-	if (snmp_send(host->sess, req))
-	  return 1;
-	else {
-	  snmp_perror("snmp_send");
-	  snmp_free_pdu(req);
-	}
-      }
-    }
-  }
-  else
-    print_result(STAT_TIMEOUT, host->sess, pdu);
+    /* set the authentication method to MD5 */
+    session.securityAuthProto = usmHMACMD5AuthProtocol;
+    session.securityAuthProtoLen = sizeof(usmHMACMD5AuthProtocol)/sizeof(oid);
+    session.securityAuthKeyLen = USM_AUTH_KU_LEN;
 
-  /* something went wrong (or end of variables) 
-   * this host not active any more
-   */
-  active_hosts--;
-  return 1;
-}
-
-void asynchronous(void)
-{
-  struct session *hs;
-  struct host *hp;
-
-  /* startup all hosts */
-
-  for (hs = sessions, hp = hosts; hp->name; hs++, hp++) {
-    struct snmp_pdu *req;
-    struct snmp_session sess;
-    snmp_sess_init(&sess);			/* initialize session */
-    sess.version = SNMP_VERSION_1;
-    sess.peername = strdup(hp->name);
-    sess.community = reinterpret_cast<unsigned char*>(strdup(hp->community));
-    sess.community_len = strlen(reinterpret_cast<char*>(sess.community));
-    sess.callback = asynch_response;		/* default callback */
-    sess.callback_magic = hs;
-    if (!(hs->sess = snmp_open(&sess))) {
-      snmp_perror("snmp_open");
-      continue;
-    }
-    hs->current_oid = oids;
-    req = snmp_pdu_create(SNMP_MSG_GET);	/* send the first GET */
-    snmp_add_null_var(req, hs->current_oid->Oid, hs->current_oid->OidLen);
-    if (snmp_send(hs->sess, req))
-      active_hosts++;
-    else {
-      snmp_perror("snmp_send");
-      snmp_free_pdu(req);
-    }
-  }
-
-  /* loop while any active hosts */
-
-  while (active_hosts) {
-    int fds = 0, block = 1;
-    fd_set fdset;
-    struct timeval timeout;
-
-    FD_ZERO(&fdset);
-    snmp_select_info(&fds, &fdset, &timeout, &block);
-    fds = select(fds, &fdset, NULL, NULL, block ? NULL : &timeout);
-    if (fds < 0) {
-        perror("select failed");
+    /* set the authentication key to a MD5 hashed version of our
+       passphrase "The Net-SNMP Demo Password" (which must be at least 8
+       characters long) */
+    if (generate_Ku(session.securityAuthProto,
+                    session.securityAuthProtoLen,
+                    (u_char *) our_v3_passphrase, strlen(our_v3_passphrase),
+                    session.securityAuthKey,
+                    &session.securityAuthKeyLen) != SNMPERR_SUCCESS) {
+        snmp_perror(argv[0]);
+        snmp_log(LOG_ERR,
+                 "Error generating Ku from authentication pass phrase. \n");
         exit(1);
     }
-    if (fds)
-        snmp_read(&fdset);
-    else
-        snmp_timeout();
-  }
+    
+#else /* we'll use the insecure (but simplier) SNMPv1 */
 
-  /* cleanup */
+    /* set the SNMP version number */
+    session.version = SNMP_VERSION_1;
 
-  for (hp = hosts, hs = sessions; hp->name; hs++, hp++) {
-    if (hs->sess) snmp_close(hs->sess);
-  }
-}
+    /* set the SNMPv1 community name used for authentication */
+    char* hostStr = "NBK49-2";
+    session.community = reinterpret_cast<unsigned char*>(hostStr);
+    session.community_len = strlen(hostStr);
 
-/*****************************************************************************/
+#endif /* SNMPv1 */
 
-int main (int argc, char **argv)
-{
-  initialize();
+    /*
+     * Open the session
+     */
+    SOCK_STARTUP;
+    ss = snmp_open(&session);                     /* establish the session */
 
-  printf("---------- asynchronous -----------\n");
-  asynchronous();
+    if (!ss) {
+      snmp_sess_perror("ack", &session);
+      SOCK_CLEANUP;
+      exit(1);
+    }
+    
+    /*
+     * Create the PDU for the data for our request.
+     *   1) We're going to GET the system.sysDescr.0 node.
+     */
+    pdu = snmp_pdu_create(SNMP_MSG_GET);
+    anOID_len = MAX_OID_LEN;
+    const char* oid_to_request = "1.3.6.1.2.1.1.3.0";
+    if (!snmp_parse_oid(oid_to_request, anOID, &anOID_len)) {
+      snmp_perror(oid_to_request);
+      SOCK_CLEANUP;
+      exit(1);
+    }
+#if OTHER_METHODS
+    /*
+     *  These are alternatives to the 'snmp_parse_oid' call above,
+     *    e.g. specifying the OID by name rather than numerically.
+     */
+    read_objid(".1.3.6.1.2.1.1.1.0", anOID, &anOID_len);
+    get_node("sysDescr.0", anOID, &anOID_len);
+    read_objid("system.sysDescr.0", anOID, &anOID_len);
+#endif
 
-  return 0;
-}
+    snmp_add_null_var(pdu, anOID, anOID_len);
+  
+    /*
+     * Send the Request out.
+     */
+    status = snmp_synch_response(ss, pdu, &response);
+
+    /*
+     * Process the response.
+     */
+    if (status == STAT_SUCCESS && response->errstat == SNMP_ERR_NOERROR) {
+      /*
+       * SUCCESS: Print the result variables
+       */
+
+      for(vars = response->variables; vars; vars = vars->next_variable)
+        print_variable(vars->name, vars->name_length, vars);
+
+      /* manipuate the information ourselves */
+      for(vars = response->variables; vars; vars = vars->next_variable) {
+        if (vars->type == ASN_OCTET_STR) {
+	  char *sp = (char *)malloc(1 + vars->val_len);
+	  memcpy(sp, vars->val.string, vars->val_len);
+	  sp[vars->val_len] = '\0';
+          printf("value #%d is a string: %s\n", count++, sp);
+	  free(sp);
+	}
+        else
+          printf("value #%d is NOT a string! Ack!\n", count++);
+      }
+    } else {
+      /*
+       * FAILURE: print what went wrong!
+       */
+
+      if (status == STAT_SUCCESS)
+        fprintf(stderr, "Error in packet\nReason: %s\n",
+                snmp_errstring(response->errstat));
+      else if (status == STAT_TIMEOUT)
+        fprintf(stderr, "Timeout: No response from %s.\n",
+                session.peername);
+      else
+        snmp_sess_perror("snmpdemoapp", ss);
+
+    }
+
+    /*
+     * Clean up:
+     *  1) free the response.
+     *  2) close the session.
+     */
+    if (response)
+      snmp_free_pdu(response);
+    snmp_close(ss);
+
+    SOCK_CLEANUP;
+    return (0);
+} /* main() */
