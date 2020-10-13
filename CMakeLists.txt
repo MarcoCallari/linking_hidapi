@@ -1,0 +1,6 @@
+cmake_minimum_required(VERSION 3.13.0)
+project(network_stats)
+set(NETWORK_ORACLE_MAJOR_VERSION 0)
+set(NETWORK_ORACLE_MINOR_VERSION 1)
+set(PATCH_VERSION 0)
+add_subdirectory(src)
