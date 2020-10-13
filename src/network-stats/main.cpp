@@ -1,84 +1,27 @@
+#include <string.h>
+#include <string>
+#include <optional>
+#include <map>
+#include <vector>
+#define HAVE_STDINT_H 
 #include <net-snmp/net-snmp-config.h>
 #include <net-snmp/net-snmp-includes.h>
-#include <string.h>
 
-/* change the word "define" to "undef" to try the (insecure) SNMPv1 version */
-#undef DEMO_USE_SNMP_VERSION_3
-
-#ifdef DEMO_USE_SNMP_VERSION_3
-const char *our_v3_passphrase = "The Net-SNMP Demo Password";
-#endif
-
-int main(int argc, char ** argv)
+netsnmp_session* openSession(const char* hostIP,const char* communityName)
 {
-    netsnmp_session session, *ss;
-    netsnmp_pdu *pdu;
-    netsnmp_pdu *response;
-
-    oid anOID[MAX_OID_LEN];
-    size_t anOID_len;
-
-    netsnmp_variable_list *vars;
-    int status;
-    int count=1;
-
-    /*
-     * Initialize the SNMP library
-     */
-    init_snmp("snmpdemoapp");
-
     /*
      * Initialize a "session" that defines who we're going to talk to
      */
+    netsnmp_session session, *ss;
     snmp_sess_init( &session );                   /* set up defaults */
-    session.peername = strdup("192.168.1.19");
-
-    /* set up the authentication parameters for talking to the server */
-
-#ifdef DEMO_USE_SNMP_VERSION_3
-
-    /* Use SNMPv3 to talk to the experimental server */
-
-    /* set the SNMP version number */
-    session.version=SNMP_VERSION_3;
-        
-    /* set the SNMPv3 user name */
-    session.securityName = strdup("MD5User");
-    session.securityNameLen = strlen(session.securityName);
-
-    /* set the security level to authenticated, but not encrypted */
-    session.securityLevel = SNMP_SEC_LEVEL_AUTHNOPRIV;
-
-    /* set the authentication method to MD5 */
-    session.securityAuthProto = usmHMACMD5AuthProtocol;
-    session.securityAuthProtoLen = sizeof(usmHMACMD5AuthProtocol)/sizeof(oid);
-    session.securityAuthKeyLen = USM_AUTH_KU_LEN;
-
-    /* set the authentication key to a MD5 hashed version of our
-       passphrase "The Net-SNMP Demo Password" (which must be at least 8
-       characters long) */
-    if (generate_Ku(session.securityAuthProto,
-                    session.securityAuthProtoLen,
-                    (u_char *) our_v3_passphrase, strlen(our_v3_passphrase),
-                    session.securityAuthKey,
-                    &session.securityAuthKeyLen) != SNMPERR_SUCCESS) {
-        snmp_perror(argv[0]);
-        snmp_log(LOG_ERR,
-                 "Error generating Ku from authentication pass phrase. \n");
-        exit(1);
-    }
-    
-#else /* we'll use the insecure (but simplier) SNMPv1 */
+    session.peername = strdup(hostIP);
 
     /* set the SNMP version number */
     session.version = SNMP_VERSION_1;
 
     /* set the SNMPv1 community name used for authentication */
-    char* hostStr = "NBK49-2";
-    session.community = reinterpret_cast<unsigned char*>(hostStr);
-    session.community_len = strlen(hostStr);
-
-#endif /* SNMPv1 */
+    session.community = reinterpret_cast<unsigned char*>(const_cast<char*>(communityName));
+    session.community_len = strlen(communityName);
 
     /*
      * Open the session
@@ -89,86 +32,114 @@ int main(int argc, char ** argv)
     if (!ss) {
       snmp_sess_perror("ack", &session);
       SOCK_CLEANUP;
-      exit(1);
+      return nullptr;
     }
-    
+    return ss;
+}
+
+std::optional<netsnmp_pdu *> getParameter(const char* requestedOid, netsnmp_session* currentSession)
+{
     /*
      * Create the PDU for the data for our request.
-     *   1) We're going to GET the system.sysDescr.0 node.
      */
+    netsnmp_pdu *response;
+    netsnmp_pdu *pdu;
+    oid anOID[MAX_OID_LEN];
+    size_t anOID_len;
     pdu = snmp_pdu_create(SNMP_MSG_GET);
     anOID_len = MAX_OID_LEN;
-    const char* oid_to_request = "1.3.6.1.2.1.1.3.0";
-    if (!snmp_parse_oid(oid_to_request, anOID, &anOID_len)) {
-      snmp_perror(oid_to_request);
+    if (!snmp_parse_oid(requestedOid, anOID, &anOID_len)) {
+      snmp_perror(requestedOid);
       SOCK_CLEANUP;
       exit(1);
     }
-#if OTHER_METHODS
-    /*
-     *  These are alternatives to the 'snmp_parse_oid' call above,
-     *    e.g. specifying the OID by name rather than numerically.
-     */
-    read_objid(".1.3.6.1.2.1.1.1.0", anOID, &anOID_len);
-    get_node("sysDescr.0", anOID, &anOID_len);
-    read_objid("system.sysDescr.0", anOID, &anOID_len);
-#endif
 
     snmp_add_null_var(pdu, anOID, anOID_len);
   
     /*
      * Send the Request out.
      */
-    status = snmp_synch_response(ss, pdu, &response);
-
-    /*
-     * Process the response.
-     */
-    if (status == STAT_SUCCESS && response->errstat == SNMP_ERR_NOERROR) {
-      /*
-       * SUCCESS: Print the result variables
-       */
-
-      for(vars = response->variables; vars; vars = vars->next_variable)
-        print_variable(vars->name, vars->name_length, vars);
-
-      /* manipuate the information ourselves */
-      for(vars = response->variables; vars; vars = vars->next_variable) {
-        if (vars->type == ASN_OCTET_STR) {
-	  char *sp = (char *)malloc(1 + vars->val_len);
-	  memcpy(sp, vars->val.string, vars->val_len);
-	  sp[vars->val_len] = '\0';
-          printf("value #%d is a string: %s\n", count++, sp);
-	  free(sp);
-	}
-        else
-          printf("value #%d is NOT a string! Ack!\n", count++);
-      }
-    } else {
-      /*
-       * FAILURE: print what went wrong!
-       */
-
+    int status = snmp_synch_response(currentSession, pdu, &response);
+    if (status == STAT_SUCCESS && response->errstat == SNMP_ERR_NOERROR)
+        return response;
+    else
       if (status == STAT_SUCCESS)
         fprintf(stderr, "Error in packet\nReason: %s\n",
                 snmp_errstring(response->errstat));
       else if (status == STAT_TIMEOUT)
-        fprintf(stderr, "Timeout: No response from %s.\n",
-                session.peername);
+        fprintf(stderr, "Timeout: No response.\n");
       else
-        snmp_sess_perror("snmpdemoapp", ss);
+        snmp_sess_perror("snmpdemoapp", currentSession);
+      return std::nullopt;
+}
 
-    }
+void printResponse(const std::optional<netsnmp_pdu*> response)
+{
+    /*
+     * Process the response.
+     */
+    netsnmp_variable_list *vars;
+    int count = 0;
+    if (response) {
+      /*
+       * SUCCESS: Print the result variables
+       */
+
+      for(vars = response.value()->variables; vars; vars = vars->next_variable)
+        print_variable(vars->name, vars->name_length, vars);
+
+      /* manipuate the information ourselves */
+      for(vars = response.value()->variables; vars; vars = vars->next_variable) {
+        if (vars->type == ASN_OCTET_STR) {
+          char *sp = (char *)malloc(1 + vars->val_len);
+          memcpy(sp, vars->val.string, vars->val_len);
+          sp[vars->val_len] = '\0';
+          printf("value #%d is a string: %s\n", count++, sp);
+          free(sp);
+        }
+        else
+          printf("value #%d is NOT a string! Ack!\n", count++);
+      }
+    } 
+}
+
+int main(int argc, char ** argv)
+{
+    int status;
+    int count=1;
+    std::optional<netsnmp_pdu*> response;
+    std::map<const std::string, std::string> hosts; //List of hosts to be fetched. A host is defined by its ip address and a community name used to log in.
+    hosts["192.168.1.200"] = "public";
+    hosts["192.168.1.201"] = "public";
+    std::vector<char*> parameters; //List of OIDS to be fetched.
+    parameters.push_back("1.3.6.1.4.1.318.1.1.26.10.2.2.1.8.1");
+    parameters.push_back("1.3.6.1.4.1.318.1.1.26.6.3.1.5.1");
+    parameters.push_back("1.3.6.1.4.1.318.1.1.26.6.3.1.6.1");
+    parameters.push_back("1.3.6.1.4.1.318.1.1.26.6.3.1.7.1");
+    parameters.push_back("1.3.6.1.4.1.318.1.1.26.8.3.1.5.1");
+    parameters.push_back("1.3.6.1.4.1.318.1.1.26.8.3.1.5.2");
 
     /*
-     * Clean up:
-     *  1) free the response.
-     *  2) close the session.
+     * Initialize the SNMP library
      */
-    if (response)
-      snmp_free_pdu(response);
-    snmp_close(ss);
+    init_snmp("snmpdemoapp");
 
-    SOCK_CLEANUP;
+    for (const auto pdu : hosts)
+    {
+      auto ss = openSession(pdu.first.c_str(),pdu.second.data());
+      if (ss)
+      {
+        for (const auto parameter : parameters)
+        {
+          response = getParameter(parameter, ss);
+          printResponse(response);
+          if (response)
+            snmp_free_pdu(response.value());
+        }
+      }
+      snmp_close(ss);
+      SOCK_CLEANUP;
+    }
+
     return (0);
-} /* main() */
+}
