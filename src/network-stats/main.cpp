@@ -1,4 +1,5 @@
 #include <string.h>
+#include <iostream>
 #include <string>
 #include <optional>
 #include <map>
@@ -9,23 +10,13 @@
 
 netsnmp_session* openSession(const char* hostIP,const char* communityName)
 {
-    /*
-     * Initialize a "session" that defines who we're going to talk to
-     */
     netsnmp_session session, *ss;
-    snmp_sess_init( &session );                   /* set up defaults */
+    snmp_sess_init( &session );
     session.peername = strdup(hostIP);
-
-    /* set the SNMP version number */
     session.version = SNMP_VERSION_1;
-
-    /* set the SNMPv1 community name used for authentication */
     session.community = reinterpret_cast<unsigned char*>(const_cast<char*>(communityName));
     session.community_len = strlen(communityName);
 
-    /*
-     * Open the session
-     */
     SOCK_STARTUP;
     ss = snmp_open(&session);                     /* establish the session */
 
@@ -34,15 +25,13 @@ netsnmp_session* openSession(const char* hostIP,const char* communityName)
       SOCK_CLEANUP;
       return nullptr;
     }
+
     return ss;
 }
 
 std::optional<netsnmp_pdu *> getParameter(const char* requestedOid, netsnmp_session* currentSession)
 {
-    /*
-     * Create the PDU for the data for our request.
-     */
-    netsnmp_pdu *response;
+    netsnmp_pdu *response = nullptr;
     netsnmp_pdu *pdu;
     oid anOID[MAX_OID_LEN];
     size_t anOID_len;
@@ -75,40 +64,30 @@ std::optional<netsnmp_pdu *> getParameter(const char* requestedOid, netsnmp_sess
 
 void printResponse(const std::optional<netsnmp_pdu*> response)
 {
-    /*
-     * Process the response.
-     */
     netsnmp_variable_list *vars;
     int count = 0;
     if (response) {
-      /*
-       * SUCCESS: Print the result variables
-       */
-
-      for(vars = response.value()->variables; vars; vars = vars->next_variable)
-        print_variable(vars->name, vars->name_length, vars);
-
-      /* manipuate the information ourselves */
-      for(vars = response.value()->variables; vars; vars = vars->next_variable) {
-        if (vars->type == ASN_OCTET_STR) {
-          char *sp = (char *)malloc(1 + vars->val_len);
-          memcpy(sp, vars->val.string, vars->val_len);
-          sp[vars->val_len] = '\0';
-          printf("value #%d is a string: %s\n", count++, sp);
-          free(sp);
+      for (vars = response.value()->variables; vars; vars = vars->next_variable)
+      {
+        if (vars->type == ASN_OCTET_STR)
+        {
+          std::cout << "It's a string" << std::endl;
+        }
+        else if (vars->type == ASN_INTEGER)
+        {
+          std::cout << "It's an integer: \"";
+          std::cout << *(vars->val.integer) <<"\"" << std::endl;
         }
         else
-          printf("value #%d is NOT a string! Ack!\n", count++);
+          std::cout << "It unknown" << std::endl;
       }
     } 
 }
 
 int main(int argc, char ** argv)
 {
-    int status;
-    int count=1;
     std::optional<netsnmp_pdu*> response;
-    std::map<const std::string, std::string> hosts; //List of hosts to be fetched. A host is defined by its ip address and a community name used to log in.
+    std::map<std::string, std::string> hosts; //List of hosts to be fetched. A host is defined by its ip address and a community name used to log in.
     hosts["192.168.1.200"] = "public";
     hosts["192.168.1.201"] = "public";
     std::vector<char*> parameters; //List of OIDS to be fetched.
@@ -119,22 +98,21 @@ int main(int argc, char ** argv)
     parameters.push_back("1.3.6.1.4.1.318.1.1.26.8.3.1.5.1");
     parameters.push_back("1.3.6.1.4.1.318.1.1.26.8.3.1.5.2");
 
-    /*
-     * Initialize the SNMP library
-     */
     init_snmp("snmpdemoapp");
 
-    for (const auto pdu : hosts)
+    for (const auto& pdu : hosts)
     {
       auto ss = openSession(pdu.first.c_str(),pdu.second.data());
       if (ss)
       {
-        for (const auto parameter : parameters)
+        for (const auto& parameter : parameters)
         {
           response = getParameter(parameter, ss);
-          printResponse(response);
           if (response)
+          {
+            printResponse(response);
             snmp_free_pdu(response.value());
+          }
         }
       }
       snmp_close(ss);
