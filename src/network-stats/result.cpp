@@ -26,14 +26,14 @@ std::variant<long ,std::string> Result::parseResult(const netsnmp_pdu* response)
     {
       if (vars->type == ASN_OCTET_STR)
         {
-          std::cout << "Received a string: \"" << std::endl;
-          std::cout << *(vars->val.string) <<"\"" << std::endl;
+          /*std::cout << "Received a string: \"" << std::endl;
+          std::cout << *(vars->val.string) <<"\"" << std::endl;*/
           value = std::string(reinterpret_cast<char*>(vars->val.string));
         }
       else if (vars->type == ASN_INTEGER)
         {
-          std::cout << "Received an integer: \"";
-          std::cout << *(vars->val.integer) <<"\"" << std::endl;
+          /*std::cout << "Received an integer: \"";
+          std::cout << *(vars->val.integer) <<"\"" << std::endl;*/
           value = *(vars->val.integer);
         }
       else
