@@ -15,5 +15,6 @@ void NodesManager::start(){
     Session session(node);
     Result result = session.getAllOIDS();
     auto value = result.getValue();
+    node.execCallback(value);
   }
 }
