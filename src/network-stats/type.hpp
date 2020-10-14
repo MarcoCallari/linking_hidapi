@@ -13,7 +13,7 @@ class Type{
   void operator=(const Type& rhs);
   std::vector<Oid> getOIDS() const;
   void addOID(const std::string& oidToAdd, const std::string& name);
-  //void addOID(const Oid& oid);
+  void addOID(const Oid& oid);
   private:
   std::vector<Oid> m_oids;
 };

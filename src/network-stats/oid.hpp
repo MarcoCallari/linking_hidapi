@@ -2,11 +2,10 @@
 #define __OID_H_
 #include <string>
 
-//TODO: oid needs a copy constructor
-
 class Oid{
   public:
   Oid(std::string code, std::string name);
+  Oid(const Oid& rhs);
   virtual ~Oid() = default;
   bool operator==(const Oid& rhs);
   void setCode(const std::string& code);

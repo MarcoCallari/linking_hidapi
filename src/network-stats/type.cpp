@@ -19,6 +19,6 @@ void Type::addOID(const std::string& oidToAdd, const std::string& name){
   m_oids.emplace_back(oidToAdd,name);
 }
 
-/*void Type::addOID(const Oid& oid){
+void Type::addOID(const Oid& oid){
   m_oids.emplace_back(oid);
-}*/ //TODO: oid needs a copy constructor
+}
