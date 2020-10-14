@@ -32,6 +32,7 @@ std::vector<Result> Session::getAllOIDS(){
   std::vector<Result> allResults;
 
   auto oidsToFetch = m_node.getOIDS();
+
   for (const auto& requestedOid : oidsToFetch) {
     pdu = snmp_pdu_create(SNMP_MSG_GET);
     anOID_len = MAX_OID_LEN;
@@ -41,15 +42,10 @@ std::vector<Result> Session::getAllOIDS(){
       SOCK_CLEANUP;
       exit(1);
    }
-
     snmp_add_null_var(pdu, anOID, anOID_len);
-
-    /*
-     * Send the Request out.
-     */
     int status = snmp_synch_response(m_session, pdu, &response);
     if (status == STAT_SUCCESS && response->errstat == SNMP_ERR_NOERROR)
-      allResults.emplace_back(response);
+      allResults.emplace_back(response, requestedOid);
     else
       if (status == STAT_SUCCESS)
         fprintf(stderr, "Error in packet\nReason: %s\n",
@@ -61,5 +57,6 @@ std::vector<Result> Session::getAllOIDS(){
         snmp_sess_perror(errorMsg.c_str(), m_session);
       }
   }
+
   return allResults;
 }

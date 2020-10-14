@@ -4,6 +4,11 @@ Oid::Oid(std::string code, std::string name) : m_code{code} , m_name{name}{
 
 }
 
+bool Oid::operator==(const Oid& rhs){
+  return (m_name == rhs.getName() &&
+          m_code == rhs.getCode()); 
+}
+
 void Oid::setCode(const std::string& code){
   m_code = code;
 }

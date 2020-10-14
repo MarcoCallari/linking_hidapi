@@ -1,9 +1,10 @@
 #include "result.hpp"
 #include <iostream> //TODO: use another logger?
 
-Result::Result(netsnmp_pdu* response) : m_response{response} {
+Result::Result(netsnmp_pdu* response, Oid oidRequested) : m_response{ response }, m_oidRequested{ oidRequested } {
   m_value = parseResult(m_response);
 }
+
 
 Result::~Result() {
 //  delete m_response;
@@ -11,6 +12,10 @@ Result::~Result() {
 
 std::variant<long,std::string> Result::getValue() const{
   return m_value;
+}
+
+Oid Result::getOID() const{
+  return m_oidRequested;
 }
 
 std::variant<long ,std::string> Result::parseResult(const netsnmp_pdu* response) const{

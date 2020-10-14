@@ -8,6 +8,7 @@ class Oid{
   public:
   Oid(std::string code, std::string name);
   virtual ~Oid() = default;
+  bool operator==(const Oid& rhs);
   void setCode(const std::string& code);
   void setName(const std::string& name);
   std::string getCode() const;

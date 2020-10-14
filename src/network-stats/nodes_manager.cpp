@@ -16,7 +16,7 @@ void NodesManager::start(){
     std::vector<Result> results = session.getAllOIDS();
     for (const auto& result : results) {
       auto value = result.getValue();
-      node.execCallback(value);
+      node.execCallback(value, result.getOID());
     }
   }
 }

@@ -5,6 +5,7 @@
 #include <net-snmp/net-snmp-config.h>
 #include <net-snmp/net-snmp-includes.h>
 #undef inline //Another workaround.
+#include "oid.hpp"
 #include <variant>
 #include <string>
 
@@ -15,13 +16,15 @@
 
 class Result{
   public:
-  explicit Result(netsnmp_pdu* response);
+  explicit Result(netsnmp_pdu* response, Oid oidRequested);
   virtual ~Result();
   std::variant<long,std::string> getValue() const;
+  Oid getOID() const;
   private:
-  std::variant<long,std::string> parseResult(const netsnmp_pdu * response) const;
   std::variant<long,std::string> m_value;
   netsnmp_pdu* m_response{ nullptr };
+  Oid m_oidRequested;
+  std::variant<long,std::string> parseResult(const netsnmp_pdu * response) const;
 };
 
 #endif // __RESULT_H_
