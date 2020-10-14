@@ -8,6 +8,9 @@
 #include <net-snmp/net-snmp-config.h>
 #include <net-snmp/net-snmp-includes.h>
 
+
+#include "node.hpp"
+
 netsnmp_session* openSession(const char* hostIP,const char* communityName)
 {
     netsnmp_session session, *ss;
@@ -71,15 +74,16 @@ void printResponse(const std::optional<netsnmp_pdu*> response)
       {
         if (vars->type == ASN_OCTET_STR)
         {
-          std::cout << "It's a string" << std::endl;
+          std::cout << "Received a string: \"" << std::endl;
+          std::cout << *(vars->val.string) <<"\"" << std::endl;
         }
         else if (vars->type == ASN_INTEGER)
         {
-          std::cout << "It's an integer: \"";
+          std::cout << "Received an integer: \"";
           std::cout << *(vars->val.integer) <<"\"" << std::endl;
         }
         else
-          std::cout << "It unknown" << std::endl;
+          std::cout << "Received a data type that hasn't been implemented yet." << std::endl;
       }
     } 
 }
@@ -87,6 +91,10 @@ void printResponse(const std::optional<netsnmp_pdu*> response)
 int main(int argc, char ** argv)
 {
     std::optional<netsnmp_pdu*> response;
+    Type PDU;
+    PDU.addOID("1.3.6.1.4.1.318.1.1.26.10.2.2.1.8.1", "Temperature");
+    Node firstPDU(PDU, "192.168.1.200", "public");
+    Node secondPDU(PDU, "192.168.1.201", "public");
     std::map<std::string, std::string> hosts; //List of hosts to be fetched. A host is defined by its ip address and a community name used to log in.
     hosts["192.168.1.200"] = "public";
     hosts["192.168.1.201"] = "public";

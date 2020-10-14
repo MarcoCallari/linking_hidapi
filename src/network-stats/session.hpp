@@ -1,19 +1,19 @@
 #ifndef __SESSION_H_
 #define __SESSION_H_
-#include <memory>
-#include <string>
+
+#define HAVE_STDINT_H //Awkward workaround to get net-snmp to compile on windows.
 #include <net-snmp/net-snmp-config.h>
 #include <net-snmp/net-snmp-includes.h>
 
+#include "node.hpp"
+#include "result.hpp"
 
 class Session{
-  private:
-  netsnmp_session m_request;
-  netsnmp_session* m_activeSession;
   public:
-  Session(const std::string peername, const std::string community);
-  virtual ~Session() = default;
-  void request(const std::string oid);
+  Session(const Node& node);
+  Result getAllOIDS();
+  private:
+  Node m_node;
 };
 
 #endif // __SESSION_H_
