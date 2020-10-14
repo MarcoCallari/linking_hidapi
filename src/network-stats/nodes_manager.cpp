@@ -14,6 +14,6 @@ void NodesManager::start(){
   for(const auto& node : m_nodes){
     Session session(node);
     Result result = session.getAllOIDS();
-//    std::variant<int,std::string> value = result.getValue();
+    auto value = result.getValue();
   }
 }

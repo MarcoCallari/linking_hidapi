@@ -10,16 +10,18 @@
 
 //netsnmp_pdu is the data structure that we're given after making a request to a host.
 //It could be a string, an int etc...(TODO: add other types from the docs)
+//This class takes care of parsing that data.
 //Currently, this class only handles ints and strings.
 
 class Result{
   public:
   explicit Result(netsnmp_pdu* response);
-  virtual ~Result() = default;
-  std::variant<int,std::string> getValue() const;
+  virtual ~Result();
+  std::variant<long,std::string> getValue() const;
   private:
-  void parseResult();
-  netsnmp_pdu* m_response;
+  std::variant<long,std::string> parseResult(const netsnmp_pdu * response) const;
+  std::variant<long,std::string> m_value;
+  netsnmp_pdu* m_response{ nullptr };
 };
 
 #endif // __RESULT_H_

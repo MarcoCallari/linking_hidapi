@@ -47,7 +47,7 @@ Result Session::getAllOIDS(){
      */
     int status = snmp_synch_response(m_session, pdu, &response);
     if (status == STAT_SUCCESS && response->errstat == SNMP_ERR_NOERROR)
-      fprintf(stdout, "Ok");
+      return Result(response);
     else
       if (status == STAT_SUCCESS)
         fprintf(stderr, "Error in packet\nReason: %s\n",
@@ -59,5 +59,5 @@ Result Session::getAllOIDS(){
         snmp_sess_perror(errorMsg.c_str(), m_session);
       }
   }
-  return Result();
+  //TODO: what should we return here?
 }

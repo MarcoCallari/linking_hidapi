@@ -13,7 +13,7 @@ class NodesManager{
   void addNode(Node& node);
   void start();
   private:
-  std::chrono::seconds m_pollingRate;
+  std::chrono::seconds m_pollingRate = std::chrono::seconds(1);
   std::vector<Node> m_nodes;
   std::thread m_childThread;
 };
