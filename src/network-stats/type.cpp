@@ -1,6 +1,6 @@
 #include "type.hpp"
 
-Type::Type(std::map<std::string , std::string> oids) : m_oids{oids}{
+Type::Type(std::vector<Oid> oids) : m_oids{oids}{
 }
 
 Type::Type(const Type& rhs){
@@ -11,11 +11,14 @@ void Type::operator=(const Type& rhs){
   m_oids = rhs.getOIDS();
 }
 
-std::map<std::string,std::string> Type::getOIDS() const{
+std::vector<Oid> Type::getOIDS() const{
   return m_oids;
 }
 
-bool Type::addOID(std::string oid, std::string name){
-  auto result = m_oids.insert(std::make_pair(oid,name));
-  return result.second;
+void Type::addOID(const std::string& oidToAdd, const std::string& name){
+  m_oids.emplace_back(oidToAdd,name);
 }
+
+/*void Type::addOID(const Oid& oid){
+  m_oids.emplace_back(oid);
+}*/ //TODO: oid needs a copy constructor

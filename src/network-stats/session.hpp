@@ -12,7 +12,7 @@
 class Session{
   public:
   Session(const Node& node);
-  Result getAllOIDS();
+  std::vector<Result> getAllOIDS();
   private:
   Node m_node;
   netsnmp_session* m_session;

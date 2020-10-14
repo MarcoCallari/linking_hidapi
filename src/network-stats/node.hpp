@@ -7,11 +7,11 @@
 
 class Node{
   public:
-  Node(const Type type, const std::string ip, const std::string communityName, std::function<void(std::variant<long, std::string>)> );
+  Node(const Type type, const std::string ip, const std::string communityName, std::function<void(std::variant<long, std::string>) > );
   virtual ~Node() = default;
   std::string getIP() const;
   std::string getCommunityName() const;
-  std::map<std::string, std::string> getOIDS() const;
+  std::vector<Oid> getOIDS() const;
   void execCallback(std::variant<long, std::string> value) const;
 
   private:

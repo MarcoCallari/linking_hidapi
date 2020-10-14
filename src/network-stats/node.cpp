@@ -11,7 +11,7 @@ std::string Node::getCommunityName() const{
  return m_communityName;
 }
 
-std::map<std::string, std::string> Node::getOIDS() const{
+std::vector<Oid> Node::getOIDS() const{
   return m_type.getOIDS();
 }
 

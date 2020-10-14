@@ -15,6 +15,8 @@ set(PROJECT_SRC
 "session.cpp"
 "result.hpp"
 "result.cpp"
+"oid.hpp"
+"oid.cpp"
 )
 add_executable(${PROJECT_NAME} ${PROJECT_SRC})
 message(status "${NET_SNMP_LIBRARIES}")

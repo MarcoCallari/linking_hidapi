@@ -1,21 +1,21 @@
 #ifndef __TYPE_H_
 #define __TYPE_H_
 
-#include <string>
-#include <map>
+#include "oid.hpp"
+#include <vector>
 
 class Type{
   public:
   Type() = default;
-  explicit Type(std::map<std::string, std::string> oids); //The first string will be the oid itself,
-                                                //the 2nd string will be the name assigned to it.
+  explicit Type(std::vector<Oid> oids);
   virtual ~Type() = default;
   Type(const Type& rhs);
-  std::map<std::string,std::string> getOIDS() const;
-  bool addOID(std::string oid, std::string name);
   void operator=(const Type& rhs);
+  std::vector<Oid> getOIDS() const;
+  void addOID(const std::string& oidToAdd, const std::string& name);
+  //void addOID(const Oid& oid);
   private:
-  std::map<std::string, std:: string> m_oids;
+  std::vector<Oid> m_oids;
 };
 
 #endif // __TYPE_H_

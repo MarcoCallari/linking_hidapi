@@ -23,19 +23,21 @@ void Session::connectSession(){
 }
 
 
-Result Session::getAllOIDS(){
+std::vector<Result> Session::getAllOIDS(){
   connectSession();
   netsnmp_pdu *response = nullptr;
   netsnmp_pdu *pdu;
   oid anOID[MAX_OID_LEN];
   size_t anOID_len;
+  std::vector<Result> allResults;
 
   auto oidsToFetch = m_node.getOIDS();
   for (const auto& requestedOid : oidsToFetch) {
     pdu = snmp_pdu_create(SNMP_MSG_GET);
     anOID_len = MAX_OID_LEN;
-    if (!snmp_parse_oid(requestedOid.first.c_str(), anOID, &anOID_len)) {
-      snmp_perror(requestedOid.first.c_str());
+    auto str = requestedOid.getCode().c_str();
+    if (!snmp_parse_oid(requestedOid.getCode().c_str(), anOID, &anOID_len)) {
+      snmp_perror(requestedOid.getCode().c_str());
       SOCK_CLEANUP;
       exit(1);
    }
@@ -47,7 +49,7 @@ Result Session::getAllOIDS(){
      */
     int status = snmp_synch_response(m_session, pdu, &response);
     if (status == STAT_SUCCESS && response->errstat == SNMP_ERR_NOERROR)
-      return Result(response);
+      allResults.emplace_back(response);
     else
       if (status == STAT_SUCCESS)
         fprintf(stderr, "Error in packet\nReason: %s\n",
@@ -55,9 +57,9 @@ Result Session::getAllOIDS(){
       else if (status == STAT_TIMEOUT)
         fprintf(stderr, "Timeout: No response.\n");
       else {
-        std::string errorMsg = "Error when requesting " + requestedOid.second + " to host " + m_node.getIP();
+        std::string errorMsg = "Error when requesting " + requestedOid.getName() + " to host " + m_node.getIP();
         snmp_sess_perror(errorMsg.c_str(), m_session);
       }
   }
-  //TODO: what should we return here?
+  return allResults;
 }

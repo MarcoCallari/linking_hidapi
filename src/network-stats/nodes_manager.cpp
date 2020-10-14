@@ -13,8 +13,10 @@ void NodesManager::addNode(Node& node){
 void NodesManager::start(){
   for(const auto& node : m_nodes){
     Session session(node);
-    Result result = session.getAllOIDS();
-    auto value = result.getValue();
-    node.execCallback(value);
+    std::vector<Result> results = session.getAllOIDS();
+    for (const auto& result : results) {
+      auto value = result.getValue();
+      node.execCallback(value);
+    }
   }
 }
