@@ -1,6 +1,6 @@
 #include "node.hpp"
 
-Node::Node(const Type type, const std::string ip, const std::string communityName, std::function<void(std::variant<long, std::string>)>): m_type{type} , m_ip{ip} , m_communityName{communityName}{
+Node::Node(const Type type, const std::string ip, const std::string communityName, std::function<void(std::variant<long, std::string>)> callbackFunc) : m_type{ type }, m_ip{ ip }, m_communityName{ communityName }, m_callbackFunc{ callbackFunc }{
 }
 
 std::string Node::getIP() const{
