@@ -10,6 +10,7 @@
 
 
 #include "node.hpp"
+#include "nodes_manager.hpp"
 
 netsnmp_session* openSession(const char* hostIP,const char* communityName)
 {
@@ -95,6 +96,11 @@ int main(int argc, char ** argv)
     PDU.addOID("1.3.6.1.4.1.318.1.1.26.10.2.2.1.8.1", "Temperature");
     Node firstPDU(PDU, "192.168.1.200", "public");
     Node secondPDU(PDU, "192.168.1.201", "public");
+    NodesManager manager;
+    manager.addNode(firstPDU);
+    manager.addNode(secondPDU);
+    manager.start();
+    /*
     std::map<std::string, std::string> hosts; //List of hosts to be fetched. A host is defined by its ip address and a community name used to log in.
     hosts["192.168.1.200"] = "public";
     hosts["192.168.1.201"] = "public";
@@ -125,7 +131,7 @@ int main(int argc, char ** argv)
       }
       snmp_close(ss);
       SOCK_CLEANUP;
-    }
+    }*/
 
     return (0);
 }
