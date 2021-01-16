@@ -4,5 +4,4 @@ set(PROJECT_SRC
 "main.cpp")
 include (${CMAKE_CURRENT_SOURCE_DIR}/../../cmake/FindHIDAPI.cmake)
 add_executable(${PROJECT_NAME} ${PROJECT_SRC})
-message(WARNING ${HIDAPI_FOUND})
 target_link_libraries(hidapi_test HIDAPI::hidapi)
